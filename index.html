@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wanderlust — 나의 여행 기록</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #0a0e17;
+    --bg-card: #111827;
+    --bg-elevated: #1a2235;
+    --accent: #f59e0b;
+    --accent-glow: rgba(245, 158, 11, 0.3);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border: rgba(255,255,255,0.06);
+    --success: #10b981;
+    --danger: #ef4444;
+    --info: #3b82f6;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans KR', 'DM Sans', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    background: rgba(10, 14, 23, 0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #fbbf24);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+    cursor: pointer;
+  }
+
+  .logo span { font-style: italic; font-weight: 400; }
+
+  .header-stats {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+  }
+
+  .stat-item { text-align: center; }
+
+  .stat-num {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .btn {
+    padding: 10px 22px;
+    border: none;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #d97706);
+    color: #000;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px var(--accent-glow);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Map View */
+  .map-view {
+    padding-top: 72px;
+    height: 100vh;
+    position: relative;
+  }
+
+  #map { width: 100%; height: 100%; }
+
+  .leaflet-container { background: var(--bg-deep) !important; }
+
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+  }
+
+  .leaflet-control-zoom a {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 18px !important;
+  }
+
+  .custom-pin { position: relative; width: 36px; height: 36px; }
+
+  .pin-dot {
+    width: 14px; height: 14px;
+    background: var(--accent);
+    border: 3px solid #fff;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 20px var(--accent-glow), 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .pin-pulse {
+    width: 36px; height: 36px;
+    background: rgba(245, 158, 11, 0.2);
+    border-radius: 50%;
+    position: absolute;
+    top: 0; left: 0;
+    animation: pulse 2.5s ease-out infinite;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(0.6); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+
+  .custom-popup .leaflet-popup-content-wrapper {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    padding: 0;
+  }
+
+  .custom-popup .leaflet-popup-tip {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+
+  .custom-popup .leaflet-popup-content { margin: 0; min-width: 240px; }
+
+  .popup-inner { padding: 16px; }
+
+  .popup-inner h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.15rem;
+    margin-bottom: 4px;
+  }
+
+  .popup-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .popup-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+
+  .popup-tag {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    border-radius: 50px;
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .popup-btn {
+    width: 100%; padding: 10px;
+    background: linear-gradient(135deg, var(--accent), #d97706);
+    color: #000; border: none;
+    border-radius: 8px;
+    font-weight: 600; cursor: pointer;
+    font-size: 0.8rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .popup-btn:hover { filter: brightness(1.1); }
+
+  /* FAB */
+  .fab-add {
+    position: fixed;
+    bottom: 32px; right: 32px;
+    z-index: 999;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #d97706);
+    color: #000; border: none;
+    font-size: 28px; cursor: pointer;
+    box-shadow: 0 8px 32px var(--accent-glow);
+    transition: all 0.3s;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .fab-add:hover {
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 0 12px 40px var(--accent-glow);
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: none;
+    align-items: center; justify-content: center;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    width: 90%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.4s ease;
+  }
+
+  .modal h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    margin-bottom: 24px;
+  }
+
+  .form-group { margin-bottom: 18px; }
+
+  .form-group label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus { border-color: var(--accent); }
+
+  .form-group textarea { resize: vertical; min-height: 80px; }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .modal-actions .btn { flex: 1; }
+
+  /* Location Picker */
+  .location-picker-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  #modalMap {
+    width: 100%;
+    height: 220px;
+    cursor: crosshair !important;
+  }
+
+  .location-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    min-height: 42px;
+  }
+
+  .location-result .pin-icon {
+    color: var(--accent);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .location-result .loc-text {
+    color: var(--text-secondary);
+    flex: 1;
+  }
+
+  .location-result .loc-text.has-value {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .location-result .loc-coords {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: 'DM Sans', monospace;
+    flex-shrink: 0;
+  }
+
+  .map-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .map-hint .hint-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s ease-out infinite;
+  }
+
+  /* Search box in modal map */
+  .map-search-wrap {
+    position: absolute;
+    top: 10px; left: 10px; right: 10px;
+    z-index: 1000;
+  }
+
+  .map-search-wrap input {
+    width: 100%;
+    padding: 10px 14px 10px 36px;
+    background: rgba(17, 24, 39, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 50px;
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .map-search-wrap input:focus { border-color: var(--accent); }
+
+  .map-search-wrap .search-icon {
+    position: absolute;
+    left: 13px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    pointer-events: none;
+  }
+
+  .search-results {
+    position: absolute;
+    top: 44px; left: 0; right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    max-height: 150px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .search-results.show { display: block; }
+
+  .search-result-item {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .search-result-item:last-child { border: none; }
+  .search-result-item:hover { background: var(--bg-elevated); }
+
+  .search-result-item .sr-name {
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  .search-result-item .sr-detail {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Detail View */
+  .detail-view {
+    display: none;
+    padding-top: 72px;
+    min-height: 100vh;
+  }
+
+  .detail-hero {
+    position: relative;
+    height: 380px;
+    overflow: hidden;
+  }
+
+  .hero-gradient {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(10,14,23,0.3) 0%, var(--bg-deep) 100%);
+    z-index: 1;
+  }
+
+  .hero-pattern {
+    position: absolute; inset: 0;
+    opacity: 0.15;
+    background-image:
+      radial-gradient(circle at 20% 50%, var(--accent) 1px, transparent 1px),
+      radial-gradient(circle at 80% 20%, var(--accent) 1px, transparent 1px),
+      radial-gradient(circle at 60% 80%, var(--accent) 1px, transparent 1px);
+    background-size: 60px 60px, 80px 80px, 100px 100px;
+  }
+
+  .hero-content {
+    position: absolute;
+    bottom: 40px; left: 48px;
+    z-index: 2;
+  }
+
+  .hero-country {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--accent);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 12px;
+  }
+
+  .hero-dates {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  .detail-body {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 48px 80px;
+  }
+
+  .quick-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 48px;
+    margin-top: -60px;
+    position: relative;
+    z-index: 3;
+  }
+
+  .quick-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    transition: all 0.3s;
+  }
+
+  .quick-stat:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+
+  .qs-icon { font-size: 1.8rem; margin-bottom: 8px; }
+
+  .qs-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .qs-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    padding: 12px 24px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: color 0.2s;
+  }
+
+  .tab:hover { color: var(--text-secondary); }
+
+  .tab.active { color: var(--accent); }
+
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+  }
+
+  .tab-content { display: none; animation: fadeIn 0.4s ease; }
+  .tab-content.active { display: block; }
+
+  .diary-entry {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 20px;
+    transition: all 0.3s;
+  }
+
+  .diary-entry:hover { border-color: rgba(245, 158, 11, 0.2); }
+
+  .diary-day {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .diary-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+  }
+
+  .diary-text {
+    font-size: 0.92rem;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+
+  .photos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .photo-card {
+    aspect-ratio: 1;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+  }
+
+  .photo-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  }
+
+  .photo-placeholder { color: var(--text-muted); font-size: 2.5rem; }
+
+  .photo-card .photo-label {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 12px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  .budget-overview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .budget-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+
+  .budget-card h4 {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .budget-bar {
+    height: 8px;
+    background: var(--bg-elevated);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    overflow: hidden;
+  }
+
+  .budget-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+  }
+
+  .budget-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .budget-item:last-child { border: none; }
+
+  .bi-cat { display: flex; align-items: center; gap: 12px; }
+
+  .bi-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+
+  .bi-name { font-size: 0.88rem; font-weight: 500; }
+
+  .bi-amount { font-weight: 700; font-family: 'DM Sans', sans-serif; }
+
+  .itinerary-day { margin-bottom: 32px; }
+
+  .itinerary-day-header {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .itinerary-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px 0;
+    position: relative;
+  }
+
+  .it-time {
+    min-width: 60px;
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: 600;
+    padding-top: 2px;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .it-line {
+    width: 2px;
+    background: var(--border);
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .it-dot {
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: absolute;
+    top: 4px; left: -4px;
+  }
+
+  .it-content h4 { font-size: 0.95rem; margin-bottom: 4px; }
+
+  .it-content p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 80px 40px;
+    color: var(--text-muted);
+  }
+
+  .empty-state .icon { font-size: 4rem; margin-bottom: 16px; opacity: 0.3; }
+  .empty-state p { font-size: 1rem; margin-bottom: 8px; }
+  .empty-state small { font-size: 0.8rem; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 768px) {
+    .header { padding: 12px 16px; }
+    .header-stats { gap: 16px; }
+    .stat-item { display: none; }
+    .stat-item:nth-child(-n+2) { display: block; }
+    .quick-stats { grid-template-columns: repeat(2, 1fr); }
+    .hero-title { font-size: 2rem; }
+    .hero-content { left: 24px; }
+    .detail-body { padding: 24px 20px 60px; }
+    .photos-grid { grid-template-columns: repeat(2, 1fr); }
+    .budget-overview { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo" onclick="showMap()">Wander<span>lust</span></div>
+  <div class="header-stats">
+    <div class="stat-item">
+      <div class="stat-num" id="totalTrips">0</div>
+      <div class="stat-label">여행</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="totalCountries">0</div>
+      <div class="stat-label">나라</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="totalDays">0</div>
+      <div class="stat-label">일</div>
+    </div>
+  </div>
+  <div>
+    <button class="btn btn-primary" onclick="openAddModal()">+ 새 여행</button>
+  </div>
+</header>
+
+<section class="map-view" id="mapView">
+  <div id="map"></div>
+  <button class="fab-add" onclick="openAddModal()" title="새 여행 추가">+</button>
+</section>
+
+<section class="detail-view" id="detailView">
+  <div class="detail-hero" id="detailHero">
+    <div class="hero-gradient"></div>
+    <div class="hero-pattern"></div>
+    <div class="hero-content">
+      <div class="hero-country" id="detailCountry"></div>
+      <h1 class="hero-title" id="detailTitle"></h1>
+      <div class="hero-dates" id="detailDates"></div>
+    </div>
+  </div>
+  <div class="detail-body">
+    <div class="quick-stats" id="quickStats"></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="diary" onclick="switchTab('diary', this)">📖 일기</button>
+      <button class="tab" data-tab="itinerary" onclick="switchTab('itinerary', this)">🗓 일정</button>
+      <button class="tab" data-tab="photos" onclick="switchTab('photos', this)">📸 사진</button>
+      <button class="tab" data-tab="budget" onclick="switchTab('budget', this)">💰 경비</button>
+    </div>
+    <div class="tab-content active" id="tab-diary"></div>
+    <div class="tab-content" id="tab-itinerary"></div>
+    <div class="tab-content" id="tab-photos"></div>
+    <div class="tab-content" id="tab-budget"></div>
+  </div>
+</section>
+
+<!-- Add Trip Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h2>✈️ 새 여행 기록</h2>
+
+    <div class="form-group">
+      <label>여행 제목</label>
+      <input type="text" id="tripTitle" placeholder="예: 시드니 Sistertime 여행">
+    </div>
+    <div class="form-group">
+      <label>나라 / 도시</label>
+      <input type="text" id="tripCountry" placeholder="예: 호주, 시드니">
+    </div>
+
+    <!-- Location Picker -->
+    <div class="form-group">
+      <label>📍 위치 선택</label>
+      <div class="location-picker-wrap">
+        <div id="modalMap"></div>
+        <div class="map-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="locationSearch" placeholder="도시 이름으로 검색 (예: Sydney, Tokyo...)" autocomplete="off">
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+      <div class="location-result" id="locationResult">
+        <span class="pin-icon">📌</span>
+        <span class="loc-text" id="locText">지도를 클릭하거나 도시를 검색해주세요</span>
+        <span class="loc-coords" id="locCoords"></span>
+      </div>
+      <div class="map-hint">
+        <span class="hint-dot"></span>
+        지도를 클릭하면 자동으로 위치가 선택됩니다
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>시작일</label>
+        <input type="date" id="tripStart">
+      </div>
+      <div class="form-group">
+        <label>종료일</label>
+        <input type="date" id="tripEnd">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>총 경비 (원)</label>
+      <input type="number" id="tripBudget" placeholder="1,500,000">
+    </div>
+    <div class="form-group">
+      <label>태그</label>
+      <input type="text" id="tripTags" placeholder="자매여행, 오페라하우스, 맛집 (쉼표로 구분)">
+    </div>
+    <div class="form-group">
+      <label>간단한 메모</label>
+      <textarea id="tripMemo" placeholder="이 여행에 대한 첫인상, 기대했던 점 등..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAddModal()">취소</button>
+      <button class="btn btn-primary" onclick="addTrip()">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── Data: Sydney Sister Trip only ───
+  let trips = [
+    {
+      id: 1,
+      title: "시드니 Sistertime 🫶",
+      country: "호주, 시드니",
+      lat: -33.8688,
+      lng: 151.2093,
+      startDate: "2025-12-20",
+      endDate: "2025-12-28",
+      budget: 2800000,
+      tags: ["자매여행", "오페라하우스", "본다이비치", "브런치"],
+      memo: "언니와 함께한 시드니 연말 여행",
+      diary: [
+        { day: "Day 1", title: "시드니에 도착하다", text: "14시간의 비행 끝에 시드니 공항에 도착했다. 공항을 나서자마자 느껴지는 따뜻한 여름 공기! 한국은 한겨울인데 여기는 완전한 여름이라 기분이 묘했다. 호텔에 짐을 풀고 서큘러 키까지 산책. 저녁노을에 물든 오페라하우스를 보는 순간 언니와 동시에 감탄했다." },
+        { day: "Day 2", title: "본다이에서 코지까지 걷다", text: "유명한 Bondi to Coogee 해안 산책로를 걸었다. 절벽 위에서 내려다보는 바다 색깔이 정말 비현실적이었다. 중간에 타마라마 비치에서 잠깐 쉬며 아이스크림을 먹었는데, 언니가 갈매기한테 빼앗길 뻔했다 😂" },
+        { day: "Day 3", title: "더 록스 마켓과 브런치", text: "토요일이라 더 록스 마켓에 갔다. 수공예 액세서리부터 빈티지 옷까지 구경할 게 너무 많았다. 점심은 Bills에서 유명한 리코타 핫케이크를 먹었는데, 인생 팬케이크였다." }
+      ],
+      itinerary: [
+        { day: "Day 1", items: [
+          { time: "14:00", title: "시드니 공항 도착", desc: "전철로 시내 이동" },
+          { time: "16:00", title: "호텔 체크인", desc: "달링하버 근처 숙소" },
+          { time: "18:00", title: "서큘러 키 산책", desc: "오페라하우스 & 하버브릿지 야경" }
+        ]},
+        { day: "Day 2", items: [
+          { time: "08:00", title: "본다이 비치", desc: "아침 수영 & 카페" },
+          { time: "10:00", title: "Bondi to Coogee Walk", desc: "해안 절벽 산책로 6km" },
+          { time: "14:00", title: "쿠지 비치 점심", desc: "씨푸드 레스토랑" },
+          { time: "17:00", title: "달링하버", desc: "선셋 크루즈" }
+        ]},
+        { day: "Day 3", items: [
+          { time: "09:00", title: "더 록스 마켓", desc: "토요 마켓 구경 & 쇼핑" },
+          { time: "12:00", title: "Bills 브런치", desc: "리코타 핫케이크" },
+          { time: "15:00", title: "시드니 타워 아이", desc: "전망대에서 시드니 전경" }
+        ]}
+      ],
+      expenses: [
+        { category: "항공", icon: "✈️", color: "#3b82f6", amount: 950000 },
+        { category: "숙소", icon: "🏨", color: "#8b5cf6", amount: 780000 },
+        { category: "식비", icon: "🍽", color: "#f59e0b", amount: 520000 },
+        { category: "교통", icon: "🚃", color: "#10b981", amount: 180000 },
+        { category: "액티비티", icon: "🏄‍♀️", color: "#ec4899", amount: 250000 },
+        { category: "쇼핑", icon: "🛍", color: "#ef4444", amount: 120000 }
+      ],
+      photos: ["🏖️", "🌊", "🦘", "🎭", "🌅", "🥞"]
+    }
+  ];
+
+  let map, modalMap, markers = [];
+  let selectedLat = null, selectedLng = null;
+  let modalMarker = null;
+
+  // ─── City Database for search ───
+  const cityDB = [
+    { name: "Seoul", country: "South Korea", ko: "서울", lat: 37.5665, lng: 126.9780 },
+    { name: "Busan", country: "South Korea", ko: "부산", lat: 35.1796, lng: 129.0756 },
+    { name: "Jeju", country: "South Korea", ko: "제주", lat: 33.4996, lng: 126.5312 },
+    { name: "Tokyo", country: "Japan", ko: "도쿄", lat: 35.6762, lng: 139.6503 },
+    { name: "Osaka", country: "Japan", ko: "오사카", lat: 34.6937, lng: 135.5023 },
+    { name: "Kyoto", country: "Japan", ko: "교토", lat: 35.0116, lng: 135.7681 },
+    { name: "Fukuoka", country: "Japan", ko: "후쿠오카", lat: 33.5904, lng: 130.4017 },
+    { name: "Sapporo", country: "Japan", ko: "삿포로", lat: 43.0621, lng: 141.3544 },
+    { name: "Sydney", country: "Australia", ko: "시드니", lat: -33.8688, lng: 151.2093 },
+    { name: "Melbourne", country: "Australia", ko: "멜버른", lat: -37.8136, lng: 144.9631 },
+    { name: "Brisbane", country: "Australia", ko: "브리즈번", lat: -27.4698, lng: 153.0251 },
+    { name: "Paris", country: "France", ko: "파리", lat: 48.8566, lng: 2.3522 },
+    { name: "London", country: "United Kingdom", ko: "런던", lat: 51.5074, lng: -0.1278 },
+    { name: "Rome", country: "Italy", ko: "로마", lat: 41.9028, lng: 12.4964 },
+    { name: "Barcelona", country: "Spain", ko: "바르셀로나", lat: 41.3874, lng: 2.1686 },
+    { name: "Madrid", country: "Spain", ko: "마드리드", lat: 40.4168, lng: -3.7038 },
+    { name: "Amsterdam", country: "Netherlands", ko: "암스테르담", lat: 52.3676, lng: 4.9041 },
+    { name: "Berlin", country: "Germany", ko: "베를린", lat: 52.5200, lng: 13.4050 },
+    { name: "Munich", country: "Germany", ko: "뮌헨", lat: 48.1351, lng: 11.5820 },
+    { name: "Prague", country: "Czech Republic", ko: "프라하", lat: 50.0755, lng: 14.4378 },
+    { name: "Vienna", country: "Austria", ko: "비엔나", lat: 48.2082, lng: 16.3738 },
+    { name: "Zurich", country: "Switzerland", ko: "취리히", lat: 47.3769, lng: 8.5417 },
+    { name: "Istanbul", country: "Turkey", ko: "이스탄불", lat: 41.0082, lng: 28.9784 },
+    { name: "Dubai", country: "UAE", ko: "두바이", lat: 25.2048, lng: 55.2708 },
+    { name: "Singapore", country: "Singapore", ko: "싱가포르", lat: 1.3521, lng: 103.8198 },
+    { name: "Bangkok", country: "Thailand", ko: "방콕", lat: 13.7563, lng: 100.5018 },
+    { name: "Chiang Mai", country: "Thailand", ko: "치앙마이", lat: 18.7883, lng: 98.9853 },
+    { name: "Hanoi", country: "Vietnam", ko: "하노이", lat: 21.0278, lng: 105.8342 },
+    { name: "Ho Chi Minh", country: "Vietnam", ko: "호치민", lat: 10.8231, lng: 106.6297 },
+    { name: "Da Nang", country: "Vietnam", ko: "다낭", lat: 16.0471, lng: 108.2068 },
+    { name: "Taipei", country: "Taiwan", ko: "타이페이", lat: 25.0330, lng: 121.5654 },
+    { name: "Hong Kong", country: "China", ko: "홍콩", lat: 22.3193, lng: 114.1694 },
+    { name: "Shanghai", country: "China", ko: "상하이", lat: 31.2304, lng: 121.4737 },
+    { name: "Beijing", country: "China", ko: "베이징", lat: 39.9042, lng: 116.4074 },
+    { name: "New York", country: "USA", ko: "뉴욕", lat: 40.7128, lng: -74.0060 },
+    { name: "Los Angeles", country: "USA", ko: "로스앤젤레스", lat: 34.0522, lng: -118.2437 },
+    { name: "San Francisco", country: "USA", ko: "샌프란시스코", lat: 37.7749, lng: -122.4194 },
+    { name: "Hawaii", country: "USA", ko: "하와이", lat: 21.3069, lng: -157.8583 },
+    { name: "Las Vegas", country: "USA", ko: "라스베가스", lat: 36.1699, lng: -115.1398 },
+    { name: "Vancouver", country: "Canada", ko: "밴쿠버", lat: 49.2827, lng: -123.1207 },
+    { name: "Toronto", country: "Canada", ko: "토론토", lat: 43.6532, lng: -79.3832 },
+    { name: "Cancun", country: "Mexico", ko: "칸쿤", lat: 21.1619, lng: -86.8515 },
+    { name: "Bali", country: "Indonesia", ko: "발리", lat: -8.3405, lng: 115.0920 },
+    { name: "Manila", country: "Philippines", ko: "마닐라", lat: 14.5995, lng: 120.9842 },
+    { name: "Cebu", country: "Philippines", ko: "세부", lat: 10.3157, lng: 123.8854 },
+    { name: "Kuala Lumpur", country: "Malaysia", ko: "쿠알라룸푸르", lat: 3.1390, lng: 101.6869 },
+    { name: "Cairo", country: "Egypt", ko: "카이로", lat: 30.0444, lng: 31.2357 },
+    { name: "Cape Town", country: "South Africa", ko: "케이프타운", lat: -33.9249, lng: 18.4241 },
+    { name: "Reykjavik", country: "Iceland", ko: "레이캬비크", lat: 64.1466, lng: -21.9426 },
+    { name: "Athens", country: "Greece", ko: "아테네", lat: 37.9838, lng: 23.7275 },
+    { name: "Santorini", country: "Greece", ko: "산토리니", lat: 36.3932, lng: 25.4615 },
+    { name: "Lisbon", country: "Portugal", ko: "리스본", lat: 38.7223, lng: -9.1393 },
+    { name: "Edinburgh", country: "United Kingdom", ko: "에든버러", lat: 55.9533, lng: -3.1883 },
+    { name: "Dublin", country: "Ireland", ko: "더블린", lat: 53.3498, lng: -6.2603 },
+    { name: "Stockholm", country: "Sweden", ko: "스톡홀름", lat: 59.3293, lng: 18.0686 },
+    { name: "Copenhagen", country: "Denmark", ko: "코펜하겐", lat: 55.6761, lng: 12.5683 },
+    { name: "Helsinki", country: "Finland", ko: "헬싱키", lat: 60.1699, lng: 24.9384 },
+    { name: "Buenos Aires", country: "Argentina", ko: "부에노스아이레스", lat: -34.6037, lng: -58.3816 },
+    { name: "Rio de Janeiro", country: "Brazil", ko: "리우데자네이루", lat: -22.9068, lng: -43.1729 },
+    { name: "Lima", country: "Peru", ko: "리마", lat: -12.0464, lng: -77.0428 },
+    { name: "Cusco", country: "Peru", ko: "쿠스코", lat: -13.5320, lng: -71.9675 },
+  ];
+
+  // ─── Init Main Map ───
+  function initMap() {
+    map = L.map('map', {
+      center: [10, 80],
+      zoom: 3,
+      minZoom: 2,
+      maxZoom: 18,
+      zoomControl: true,
+      attributionControl: false
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+    renderPins();
+    updateStats();
+  }
+
+  function renderPins() {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+    trips.forEach(trip => {
+      const icon = L.divIcon({
+        className: 'custom-pin',
+        html: '<div class="pin-pulse"></div><div class="pin-dot"></div>',
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
+      });
+      const marker = L.marker([trip.lat, trip.lng], { icon })
+        .addTo(map)
+        .bindPopup(`
+          <div class="popup-inner">
+            <h3>${trip.title}</h3>
+            <div class="popup-date">${formatDate(trip.startDate)} — ${formatDate(trip.endDate)}</div>
+            <div class="popup-tags">${trip.tags.map(t => `<span class="popup-tag">${t}</span>`).join('')}</div>
+            <button class="popup-btn" onclick="showDetail(${trip.id})">여행 기록 보기 →</button>
+          </div>
+        `, { className: 'custom-popup', maxWidth: 280 });
+      markers.push(marker);
+    });
+  }
+
+  // ─── Modal Map (Location Picker) ───
+  let modalMapInstance = null;
+
+  function initModalMap() {
+    if (modalMapInstance) {
+      modalMapInstance.remove();
+    }
+    modalMapInstance = L.map('modalMap', {
+      center: [20, 30],
+      zoom: 2,
+      minZoom: 2,
+      maxZoom: 18,
+      zoomControl: false,
+      attributionControl: false
+    });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(modalMapInstance);
+
+    // Click to select location
+    modalMapInstance.on('click', function(e) {
+      setPickerLocation(e.latlng.lat, e.latlng.lng);
+      reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+  }
+
+  function setPickerLocation(lat, lng, label) {
+    selectedLat = lat;
+    selectedLng = lng;
+
+    if (modalMarker) {
+      modalMapInstance.removeLayer(modalMarker);
+    }
+
+    const icon = L.divIcon({
+      className: 'custom-pin',
+      html: '<div class="pin-pulse"></div><div class="pin-dot"></div>',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+
+    modalMarker = L.marker([lat, lng], { icon }).addTo(modalMapInstance);
+    modalMapInstance.flyTo([lat, lng], 8, { duration: 0.8 });
+
+    const locText = document.getElementById('locText');
+    const locCoords = document.getElementById('locCoords');
+
+    if (label) {
+      locText.textContent = label;
+      locText.classList.add('has-value');
+    }
+    locCoords.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }
+
+  function reverseGeocode(lat, lng) {
+    // Find closest city from database
+    let closest = null;
+    let minDist = Infinity;
+    cityDB.forEach(city => {
+      const dist = Math.sqrt(Math.pow(city.lat - lat, 2) + Math.pow(city.lng - lng, 2));
+      if (dist < minDist) {
+        minDist = dist;
+        closest = city;
+      }
+    });
+
+    const locText = document.getElementById('locText');
+    if (closest && minDist < 5) {
+      locText.textContent = `${closest.ko || closest.name}, ${closest.country}`;
+      locText.classList.add('has-value');
+      // Auto fill country field
+      const countryInput = document.getElementById('tripCountry');
+      if (!countryInput.value) {
+        countryInput.value = `${closest.country}, ${closest.ko || closest.name}`;
+      }
+    } else {
+      locText.textContent = `선택된 위치`;
+      locText.classList.add('has-value');
+    }
+  }
+
+  // ─── City Search ───
+  const searchInput = document.getElementById('locationSearch');
+  const searchResultsEl = document.getElementById('searchResults');
+  let searchTimeout;
+
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const q = this.value.trim().toLowerCase();
+    if (q.length < 1) {
+      searchResultsEl.classList.remove('show');
+      return;
+    }
+    searchTimeout = setTimeout(() => {
+      const results = cityDB.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.country.toLowerCase().includes(q) ||
+        (c.ko && c.ko.includes(q))
+      ).slice(0, 6);
+
+      if (results.length === 0) {
+        searchResultsEl.classList.remove('show');
+        return;
+      }
+
+      searchResultsEl.innerHTML = results.map(c => `
+        <div class="search-result-item" onclick="selectCity(${c.lat}, ${c.lng}, '${c.ko || c.name}', '${c.country}')">
+          <div class="sr-name">${c.ko || c.name}</div>
+          <div class="sr-detail">${c.name}, ${c.country}</div>
+        </div>
+      `).join('');
+      searchResultsEl.classList.add('show');
+    }, 150);
+  });
+
+  searchInput.addEventListener('focus', function() {
+    if (this.value.trim().length >= 1) {
+      this.dispatchEvent(new Event('input'));
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.map-search-wrap')) {
+      searchResultsEl.classList.remove('show');
+    }
+  });
+
+  function selectCity(lat, lng, name, country) {
+    setPickerLocation(lat, lng, `${name}, ${country}`);
+    searchInput.value = '';
+    searchResultsEl.classList.remove('show');
+
+    const countryInput = document.getElementById('tripCountry');
+    if (!countryInput.value) {
+      countryInput.value = `${country}, ${name}`;
+    }
+  }
+
+  // ─── Modal Controls ───
+  function openAddModal() {
+    document.getElementById('addModal').classList.add('active');
+    selectedLat = null;
+    selectedLng = null;
+    document.getElementById('locText').textContent = '지도를 클릭하거나 도시를 검색해주세요';
+    document.getElementById('locText').classList.remove('has-value');
+    document.getElementById('locCoords').textContent = '';
+    setTimeout(() => initModalMap(), 100);
+  }
+
+  function closeAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+    if (modalMapInstance) {
+      modalMapInstance.remove();
+      modalMapInstance = null;
+    }
+    modalMarker = null;
+  }
+
+  function addTrip() {
+    const title = document.getElementById('tripTitle').value.trim();
+    const country = document.getElementById('tripCountry').value.trim();
+    const start = document.getElementById('tripStart').value;
+    const end = document.getElementById('tripEnd').value;
+    const budget = parseInt(document.getElementById('tripBudget').value) || 0;
+    const tags = document.getElementById('tripTags').value.split(',').map(t => t.trim()).filter(Boolean);
+    const memo = document.getElementById('tripMemo').value.trim();
+
+    if (!title) { alert('여행 제목을 입력해주세요!'); return; }
+    if (!selectedLat || !selectedLng) { alert('지도에서 위치를 선택해주세요!'); return; }
+    if (!start) { alert('시작일을 입력해주세요!'); return; }
+
+    const newTrip = {
+      id: Date.now(),
+      title, country,
+      lat: selectedLat,
+      lng: selectedLng,
+      startDate: start,
+      endDate: end || start,
+      budget, tags, memo,
+      diary: [],
+      itinerary: [],
+      expenses: [],
+      photos: []
+    };
+
+    trips.push(newTrip);
+    renderPins();
+    updateStats();
+    closeAddModal();
+
+    ['tripTitle','tripCountry','tripStart','tripEnd','tripBudget','tripTags','tripMemo']
+      .forEach(id => document.getElementById(id).value = '');
+
+    map.flyTo([selectedLat, selectedLng], 6, { duration: 1.5 });
+  }
+
+  // ─── Detail View ───
+  function showDetail(id) {
+    const trip = trips.find(t => t.id === id);
+    if (!trip) return;
+
+    document.getElementById('mapView').style.display = 'none';
+    document.getElementById('detailView').style.display = 'block';
+
+    const colors = ['#1a1a2e', '#162447', '#1b2838', '#1a2332'];
+    document.getElementById('detailHero').style.background = `linear-gradient(135deg, ${colors[id % colors.length]}, var(--bg-deep))`;
+    document.getElementById('detailCountry').textContent = trip.country;
+    document.getElementById('detailTitle').textContent = trip.title;
+    document.getElementById('detailDates').textContent = `${formatDate(trip.startDate)} — ${formatDate(trip.endDate)}`;
+
+    const days = daysBetween(trip.startDate, trip.endDate);
+    document.getElementById('quickStats').innerHTML = `
+      <div class="quick-stat"><div class="qs-icon">📅</div><div class="qs-value">${days}일</div><div class="qs-label">여행 기간</div></div>
+      <div class="quick-stat"><div class="qs-icon">💰</div><div class="qs-value">₩${(trip.budget/10000).toFixed(0)}만</div><div class="qs-label">총 경비</div></div>
+      <div class="quick-stat"><div class="qs-icon">📖</div><div class="qs-value">${trip.diary.length}</div><div class="qs-label">일기</div></div>
+      <div class="quick-stat"><div class="qs-icon">📸</div><div class="qs-value">${trip.photos.length}</div><div class="qs-label">사진</div></div>
+    `;
+
+    renderDiary(trip);
+    renderItinerary(trip);
+    renderPhotos(trip);
+    renderBudget(trip);
+    switchTab('diary', document.querySelector('.tab'));
+    window.scrollTo(0, 0);
+  }
+
+  function showMap() {
+    document.getElementById('detailView').style.display = 'none';
+    document.getElementById('mapView').style.display = 'block';
+    map.invalidateSize();
+  }
+
+  function renderDiary(trip) {
+    const el = document.getElementById('tab-diary');
+    if (!trip.diary.length) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">📖</div><p>아직 작성된 일기가 없어요</p><small>여행의 순간들을 기록해보세요</small></div>';
+      return;
+    }
+    el.innerHTML = trip.diary.map(d => `
+      <div class="diary-entry">
+        <div class="diary-day">${d.day}</div>
+        <div class="diary-title">${d.title}</div>
+        <div class="diary-text">${d.text}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderItinerary(trip) {
+    const el = document.getElementById('tab-itinerary');
+    if (!trip.itinerary.length) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">🗓</div><p>아직 등록된 일정이 없어요</p></div>';
+      return;
+    }
+    el.innerHTML = trip.itinerary.map(day => `
+      <div class="itinerary-day">
+        <div class="itinerary-day-header">${day.day}</div>
+        ${day.items.map(item => `
+          <div class="itinerary-item">
+            <div class="it-time">${item.time}</div>
+            <div class="it-line"><div class="it-dot"></div></div>
+            <div class="it-content">
+              <h4>${item.title}</h4>
+              ${item.desc ? `<p>${item.desc}</p>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  function renderPhotos(trip) {
+    const el = document.getElementById('tab-photos');
+    el.innerHTML = `
+      <div class="photos-grid">
+        ${trip.photos.map((p, i) => `
+          <div class="photo-card">
+            <div class="photo-placeholder">${p}</div>
+            <div class="photo-label">사진 ${i + 1}</div>
+          </div>
+        `).join('')}
+        <div class="photo-card" style="border-style: dashed; cursor: pointer;" onclick="alert('사진 업로드 기능은 서버 연동 후 사용 가능합니다!')">
+          <div class="photo-placeholder" style="font-size: 2rem; color: var(--text-muted);">+</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderBudget(trip) {
+    const el = document.getElementById('tab-budget');
+    const total = trip.expenses.reduce((s, e) => s + e.amount, 0);
+    if (!trip.expenses.length) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">💰</div><p>아직 등록된 경비가 없어요</p></div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="budget-overview">
+        <div class="budget-card">
+          <h4>총 경비</h4>
+          <div style="font-size: 2rem; font-weight: 700; font-family: 'DM Sans'; color: var(--accent);">₩${total.toLocaleString()}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">1일 평균 ₩${Math.round(total / daysBetween(trip.startDate, trip.endDate)).toLocaleString()}</div>
+        </div>
+        <div class="budget-card">
+          <h4>카테고리 비중</h4>
+          ${trip.expenses.map(e => `
+            <div style="margin-bottom: 8px;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 4px;">
+                <span>${e.icon} ${e.category}</span>
+                <span style="color: var(--text-muted)">${Math.round(e.amount/total*100)}%</span>
+              </div>
+              <div class="budget-bar"><div class="budget-bar-fill" style="width: ${e.amount/total*100}%; background: ${e.color};"></div></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="budget-card">
+        <h4>상세 내역</h4>
+        ${trip.expenses.map(e => `
+          <div class="budget-item">
+            <div class="bi-cat">
+              <div class="bi-icon" style="background: ${e.color}20; color: ${e.color}">${e.icon}</div>
+              <div class="bi-name">${e.category}</div>
+            </div>
+            <div class="bi-amount">₩${e.amount.toLocaleString()}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function switchTab(tabId, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+  }
+
+  // ─── Utils ───
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function daysBetween(a, b) {
+    return Math.max(1, Math.ceil((new Date(b) - new Date(a)) / 86400000) + 1);
+  }
+
+  function updateStats() {
+    document.getElementById('totalTrips').textContent = trips.length;
+    const countries = new Set(trips.map(t => t.country.split(',')[0].trim()));
+    document.getElementById('totalCountries').textContent = countries.size;
+    const totalDays = trips.reduce((s, t) => s + daysBetween(t.startDate, t.endDate), 0);
+    document.getElementById('totalDays').textContent = totalDays;
+  }
+
+  document.getElementById('addModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddModal();
+  });
+
+  initMap();
+</script>
+</body>
+</html>
